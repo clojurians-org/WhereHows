@@ -1,0 +1,31 @@
+psql -h /nix/var/run -tAc "CREATE DATABASE datahub" postgres ;
+psql -h /nix/var/run -tAc "CREATE USER datahub WITH PASSWORD 'datahub'" postgres;
+
+curl -H "Content-Type: application/json" -XPUT http://localhost:9200/corpuserinfodocument --data @schema/es7-corpuser-index-config.json
+curl -H "Content-Type: application/json" -XPUT http://localhost:9200/datasetdocument --data @schema/es7-dataset-index-config.json
+
+neo4j: http://localhost:7474/
+
+kafka-topics.sh --create --bootstrap-server localhost:9092 --partitions 1 --replication-factor 1 --topic MetadataChangeEvent
+kafka-topics.sh --create --bootstrap-server localhost:9092 --partitions 1 --replication-factor 1 --topic MetadataAuditEvent
+
+
+export EBEAN_DATASOURCE_URL=jdbc:postgresql://localhost:5432/datahub
+export EBEAN_DATASOURCE_USERNAME=datahub
+export EBEAN_DATASOURCE_PASSWORD=datahub
+export KAFKA_BOOTSTRAP_SERVER=localhost:9092
+export KAFKA_SCHEMAREGISTRY_URL=http://localhost:8081
+export ELASTICSEARCH_HOST=localhost
+export NEO4J_URI=bolt://localhost
+export NEO4J_USERNAME=neo4j
+export NEO4J_PASSWORD=datahub
+./gradlew :gms:war:build
+./gradlew :gms:war:JettyRunWar
+
+./gradlew :datahub-frontend:build
+cd datahub-frontend/run && ./run-local-frontend
+
+
+
+
+
