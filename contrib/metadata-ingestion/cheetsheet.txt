@@ -1,1 +1,2 @@
-nix-instantiate --eval -E 'builtins.toJSON (import ../nix/datahub-config.nix)'  | jq -r > datahub-config.json
+cat sample/mce.json.dat | bin/datahub-producer.hs config
+curl -H "Content-Type: application/json" http://localhost:9200/datasetdocument/_search
