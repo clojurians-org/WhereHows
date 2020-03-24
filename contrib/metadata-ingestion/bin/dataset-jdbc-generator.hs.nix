@@ -8,8 +8,19 @@ let
   } ; 
   haskellPackages = pkgs.haskellPackages.override {
     overrides = self: super: with pkgs.haskell.lib; {
-      jni = addBuildDepend (self.callCabal2nix "jni"  (inline_java_git + /jni) {}) pkgs.jdk ;
-      inline-java = addBuildDepend (self.callCabal2nix "inline-java" inline_java_git {}) pkgs.jdk ;
+      jni = overrideCabal (self.callCabal2nix "jni" (inline_java_git + /jni) {}) (drv: {
+        preConfigure = ''
+          local libdir=( "${pkgs.jdk}/lib/openjdk/jre/lib/"*"/server" )
+          configureFlags+=" --extra-lib-dir=''${libdir[0]}"
+        '' ;
+      }) ;
+
+      jvm = overrideCabal (self.callCabal2nix "inline-java" (inline_java_git + /jvm) {}) (drv: {
+        doCheck = false ;
+      }) ;
+      inline-java = overrideCabal (self.callCabal2nix "inline-java" inline_java_git {}) (drv: {
+        doCheck = false ;
+      }) ;
     } ;
   };
 
