@@ -15,12 +15,19 @@ let
         '' ;
       }) ;
 
-      jvm = overrideCabal (self.callCabal2nix "inline-java" (inline_java_git + /jvm) {}) (drv: {
+      jvm = overrideCabal (self.callCabal2nix "jvm" (inline_java_git + /jvm) {}) (drv: {
         doCheck = false ;
       }) ;
       inline-java = overrideCabal (self.callCabal2nix "inline-java" inline_java_git {}) (drv: {
         doCheck = false ;
       }) ;
+      jvm-batching = overrideCabal (self.callCabal2nix "jvm-batching" (inline_java_git + /jvm-batching) {}) (drv: {
+        doCheck = false ;
+      }) ;
+      jvm-streaming = overrideCabal (self.callCabal2nix "jvm-streaming" (inline_java_git + /jvm-streaming) {}) (drv: {
+        doCheck = false ;
+      }) ;
+
     } ;
   };
 
@@ -37,7 +44,6 @@ mkShell {
         p.interpolatedstring-perl6
         p.exceptions 
         p.inline-java
-        
       ]
     ))
   ];

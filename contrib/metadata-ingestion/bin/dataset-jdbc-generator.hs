@@ -4,6 +4,8 @@
 {-# LANGUAGE OverloadedStrings, FlexibleInstances, FlexibleContexts, ScopedTypeVariables #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TemplateHaskell, QuasiQuotes #-}
+{-# LANGUAGE TypeOperators #-}
+
 
 {-# OPTIONS_GHC -fplugin=Language.Java.Inline.Plugin #-}
 
@@ -12,13 +14,19 @@ import System.Environment (lookupEnv)
 import qualified Language.Haskell.TH.Syntax as TH
 
 import Control.Concurrent (runInBoundThread)
-import Language.Java (withJVM, reify, reflect)
-import Language.Java.Inline (java)
+import Language.Java (J, withJVM, reify, reflect, JType(..))
+import Language.Java.Inline (imports, java)
 
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import Data.String.Conversions (cs)
 import Text.InterpolatedString.Perl6 (q)
+
+import Prelude hiding ((>>=), (>>))
+
+imports "java.util.*"
+imports "java.sql.*"
+
 
 datasetOracleSql :: String
 datasetOracleSql = [q|
@@ -75,28 +83,30 @@ main = do
         e.printStackTrace() ;
         System.exit(1) ;
       }
-
-      java.util.List<String[]> result = new java.util.ArrayList() ;
-      try (java.sql.Connection con = java.sql.DriverManager.getConnection($jDbUrl, $jDbUser, $jDbPassword) ;
-           java.sql.Statement st = con.createStatement(); ) {
-        try (java.sql.ResultSet rs = st.executeQuery($jDbSQL)) {
+      
+      List<String[]> result = new ArrayList<String[]>() ;
+      try (Connection con = DriverManager.getConnection($jDbUrl, $jDbUser, $jDbPassword) ;
+           Statement st = con.createStatement(); ) {
+        try (ResultSet rs = st.executeQuery($jDbSQL)) {
           while(rs.next()) {
-            String[] row  = {
-              rs.getString("schema_name")
-            , rs.getString("schema_description")
-            , rs.getString("field_path")
-            , rs.getString("native_data_type")
-            , rs.getString("description")
+            String[] row  = new String[] {
+              Optional.ofNullable(rs.getString("schema_name")).orElse("")
+            , Optional.ofNullable(rs.getString("schema_description")).orElse("")
+            , Optional.ofNullable(rs.getString("field_path")).orElse("")
+            , Optional.ofNullable(rs.getString("native_data_type")).orElse("")
+            , Optional.ofNullable(rs.getString("description")).orElse("")
             } ;
+            System.out.println(rs.getString("field_path")) ;
             result.add(row) ;
           }
         }
-        return result ;
-      } catch (java.sql.SQLException e) {
+        return result.toArray(new String[0][0]) ;
+      } catch (SQLException e) {
         e.printStackTrace() ;
+        return null ;
       }
-      return null ;
     } |]
+    
     xs :: [[T.Text]]  <- reify result
     T.putStrLn (T.unwords (head xs))
     return ()
