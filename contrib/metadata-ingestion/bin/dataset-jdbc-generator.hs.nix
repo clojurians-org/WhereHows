@@ -31,10 +31,13 @@ mkShell {
     pkgs.postgresql_jdbc
     pkgs.mysql_jdbc
     pkgs.mssql_jdbc
+
     (haskellPackages.ghcWithPackages ( p: 
       [ p.bytestring p.string-conversions
+        p.interpolatedstring-perl6
         p.exceptions 
         p.inline-java
+        
       ]
     ))
   ];
