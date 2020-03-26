@@ -28,6 +28,9 @@ in
 mkShell {
   buildInputs = [
     pkgs.jdk
+    pkgs.postgresql_jdbc
+    pkgs.mysql_jdbc
+    pkgs.mssql_jdbc
     (haskellPackages.ghcWithPackages ( p: 
       [ p.bytestring p.string-conversions
         p.exceptions 
