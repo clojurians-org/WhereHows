@@ -1,11 +1,12 @@
 psql -h /nix/var/run -tAc "CREATE DATABASE datahub" postgres ;
 psql -h /nix/var/run -tAc "CREATE USER datahub WITH PASSWORD 'datahub'" postgres;
-psql -h 127.0.0.1 -U datahub
+psql -h 127.0.0.1 -U datahub -f schema/pg.sql
 
 echo "CREATE DATABASE datahub" | mysql -u root -S /nix/var/run/mysqld.sock
 echo "CREATE USER datahub IDENTIFIED BY 'datahub'" | mysql -u root -S /nix/var/run/mysqld.sock
 echo "GRANT ALL PRIVILEGES ON datahub.* TO datahub" | mysql -u root -S /nix/var/run/mysqld.sock
-mysql -h 127.0.0.1 -udatahub -p
+cat schema/mysql.sql | mysql -h 127.0.0.1 -udatahub -p datahub
+
 
 # curl -H "Content-Type: application/json" -XPUT http://localhost:9200/corpuserinfodocument --data @schema/es7-corpuser-index-config.json
 # curl -H "Content-Type: application/json" -XPUT http://localhost:9200/datasetdocument --data @schema/es7-dataset-index-config.json
