@@ -11,6 +11,8 @@
 
 
 import System.Environment (lookupEnv)
+import System.IO (hPrint, stderr)
+
 import qualified Language.Haskell.TH.Syntax as TH
 
 import Control.Concurrent (runInBoundThread)
@@ -23,6 +25,15 @@ import Data.String.Conversions (cs)
 import Text.InterpolatedString.Perl6 (q)
 
 import Prelude hiding ((>>=), (>>))
+
+import Data.Conduit (ConduitT, ZipSink(..), getZipSink, runConduitRes, runConduit, bracketP, (.|), yield)
+import qualified Data.Conduit.Combinators as C
+import qualified Data.Conduit.List as C (groupBy)
+
+import qualified Data.Aeson as J
+import Control.Arrow ((>>>))
+import Data.Aeson.QQ (aesonQQ)
+
 
 imports "java.util.*"
 imports "java.sql.*"
@@ -61,12 +72,45 @@ datasetMysqlSql = [q|
     order by schema_name, c.ORDINAL_POSITION
 |]
 
+
+mkMCE :: T.Text -> [[T.Text]] -> J.Value
+mkMCE platform ((schemaName:_):_) = [aesonQQ|
+  { "proposedSnapshot": {
+      "com.linkedin.pegasus2avro.metadata.snapshot.DatasetSnapshot": {
+        "urn": "#"
+      , "aspects": [
+          { "com.linkedin.pegasus2avro.schema.SchemaMetadata": {
+              "schemaName": #{schemaName}
+            , "platform": "urn:li:dataPlatform:"
+            , "created": {}
+            , "lastModified": {}
+            , "hash": ""
+            , "platformSchema": {
+                "com.linkedin.pegasus2avro.schema.MySqlDDL": {
+                  "tableSchema": ""
+                }
+              }
+            , "fields": {
+                "fieldPath": "#"
+              , "description": {"string": "#"}
+              , "type": {"type": {"com.linkedin.pegasus2avro.schema.StringType": {}}}
+              , "nativeDataType": "#"
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+  |]
+
 main :: IO ()
 main = do
   let
     jvmArgs = case $(TH.lift =<< TH.runIO (lookupEnv "CLASSPATH")) of
       Nothing -> []
       Just cp -> [ cs ("-Djava.class.path=" ++ cp) ]
+    platform :: T.Text =  "localhost_datahub"
     dbUrl :: T.Text = "jdbc:mysql://localhost:3306/datahub?useSSL=false"
     dbUser :: T.Text  = "datahub"
     dbPassword :: T.Text = "datahub"
@@ -96,7 +140,6 @@ main = do
             , Optional.ofNullable(rs.getString("native_data_type")).orElse("")
             , Optional.ofNullable(rs.getString("description")).orElse("")
             } ;
-            System.out.println(rs.getString("field_path")) ;
             result.add(row) ;
           }
         }
@@ -107,7 +150,15 @@ main = do
       }
     } |]
     
-    xs :: [[T.Text]]  <- reify result
-    T.putStrLn (T.unwords (head xs))
+    rows :: [[T.Text]]  <- reify result
+
+    runConduit $ C.yieldMany rows
+              -- .| C.iterM (hPrint stderr)
+              .| C.groupBy sameSchemaName
+              -- .| C.iterM (hPrint stderr)
+              .| C.map (mkMCE platform) 
+              .| C.mapM_ (J.encode >>> cs >>> putStrLn)
+              .| C.sinkNull
     return ()
- 
+    where
+      sameSchemaName (schemaNameL:_) (schemaNameR:_) = schemaNameL == schemaNameR
