@@ -42,8 +42,11 @@ mkShell {
     (haskellPackages.ghcWithPackages ( p: 
       [ p.bytestring p.string-conversions
         p.interpolatedstring-perl6
+        p.aeson p.aeson-qq
         p.exceptions 
         p.inline-java
+
+        p.conduit        
       ]
     ))
   ];

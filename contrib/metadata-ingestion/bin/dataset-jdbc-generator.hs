@@ -34,6 +34,8 @@ import qualified Data.Aeson as J
 import Control.Arrow ((>>>))
 import Data.Aeson.QQ (aesonQQ)
 
+import Text.Printf (printf)
+
 
 imports "java.util.*"
 imports "java.sql.*"
@@ -73,29 +75,34 @@ datasetMysqlSql = [q|
 |]
 
 
-mkMCE :: T.Text -> [[T.Text]] -> J.Value
-mkMCE platform ((schemaName:_):_) = [aesonQQ|
+mkMCE :: Int -> T.Text -> [[T.Text]] -> J.Value
+mkMCE ts platform fields@((schemaName:schemaDescription:_):_) = [aesonQQ|
   { "proposedSnapshot": {
       "com.linkedin.pegasus2avro.metadata.snapshot.DatasetSnapshot": {
-        "urn": "#"
+        "urn": #{urn}
       , "aspects": [
-          { "com.linkedin.pegasus2avro.schema.SchemaMetadata": {
+          { "com.linkedin.pegasus2avro.common.Ownership": {
+              "owners": [{"owner": "urn:li:corpuser:datahub", "type":"DATAOWNER"}]
+            , "lastModified": {"time": #{ts}, "actor": "urn:li:corpuser:datahub"}
+            }
+          }
+        , { "com.linkedin.pegasus2avro.dataset.DatasetProperties": {
+              "description": {"string": #{schemaDescription}}
+            }
+          }
+        , { "com.linkedin.pegasus2avro.schema.SchemaMetadata": {
               "schemaName": #{schemaName}
             , "platform": "urn:li:dataPlatform:"
-            , "created": {}
-            , "lastModified": {}
+            , "version": 0
+            , "created": {"time": #{ts}, "actor": "urn:li:corpuser:datahub"}
+            , "lastModified": {"time": #{ts}, "actor": "urn:li:corpuser:datahub"}
             , "hash": ""
             , "platformSchema": {
                 "com.linkedin.pegasus2avro.schema.MySqlDDL": {
                   "tableSchema": ""
                 }
               }
-            , "fields": {
-                "fieldPath": "#"
-              , "description": {"string": "#"}
-              , "type": {"type": {"com.linkedin.pegasus2avro.schema.StringType": {}}}
-              , "nativeDataType": "#"
-              }
+            , "fields": #{mkFields fields}
             }
           }
         ]
@@ -103,6 +110,18 @@ mkMCE platform ((schemaName:_):_) = [aesonQQ|
     }
   }
   |]
+  where
+    urn :: String = printf "urn:li:dataset:(urn:li:dataPlatform:%s,%s,%s)"
+                      platform schemaName ("PROD"::String)
+    mkField (_:_:fieldPath:nativeDataType:description:[]) = [aesonQQ|
+      {
+        "fieldPath": #{fieldPath}
+      , "description": {"string": #{description}}
+      , "type": {"type": {"com.linkedin.pegasus2avro.schema.StringType": {}}}
+      , "nativeDataType": #{nativeDataType}
+      }
+    |]
+    mkFields = map mkField
 
 main :: IO ()
 main = do
@@ -156,7 +175,7 @@ main = do
               -- .| C.iterM (hPrint stderr)
               .| C.groupBy sameSchemaName
               -- .| C.iterM (hPrint stderr)
-              .| C.map (mkMCE platform) 
+              .| C.map (mkMCE 0 platform) 
               .| C.mapM_ (J.encode >>> cs >>> putStrLn)
               .| C.sinkNull
     return ()
