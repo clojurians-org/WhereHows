@@ -99,7 +99,8 @@ mkMCE ts platform fields@((schemaName:schemaDescription:_):_) = [aesonQQ|
             , "hash": ""
             , "platformSchema": {
                 "com.linkedin.pegasus2avro.schema.MySqlDDL": {
-                  "tableSchema": ""
+                  "documentSchema": "{}"
+                , "tableSchema": "{}"
                 }
               }
             , "fields": #{mkFields fields}
