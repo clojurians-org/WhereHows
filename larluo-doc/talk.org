@@ -1,0 +1,40 @@
+#+Startup: showall
+
+* 1. why i choose datahub?
+** platform
+we have three data platform: 
+- cloud data platform: dataworks on hive
+- traditonal data warehouse: oracle rac
+- external data platform: third-party rest-api data for credit-score
+
+** requirement
+*** unified metadata platform
+  the cloud data platform already have metadata-system integrated
+, but it didn't support oracle/mysql/postgresql or more...
+*** ad hoc thing
+  third-party data provider offer data schema in excel, world or json, we need to integrate it.
+*** cheap technical stack
+  we already have: elastic EFK(filebeat + kafka + elasticsearch + kibana) + confluence KSQL(kafka-connector, KSQL).
+  the extra thing we need is only neo4j.
+*** do search
+  previously we use both excel and wiki page to link the metadata, but it's time cost to find information.
+*** lightweight
+  our company buy product from various vendor
+
+** usage
+*** data dictionary
+  we already load the 7000 table to system.
+  mainly focus on oracle and mysql platform as cloud platform for hive already have function inside. 
+  we will unify finally.
+*** data lineage:  
+  plan to support oracle,
+*** ad hoc query editor: 
+  
+* 2. setup datahub with nix
+** nix
+we setup all database using nix.
+** nix-store
+** nix-shell
+** home-manager
+
+* 3. data ingestion with nix and haskell
