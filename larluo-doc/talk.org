@@ -4,7 +4,7 @@
 ** platform
 we have three data platform: 
 - cloud data platform: dataworks on hive
-- traditonal data warehouse: oracle rac
+- traditonal data warehouse: oracle rac + clickhouse
 - external data platform: third-party rest-api data for credit-score
 
 ** requirement
@@ -12,29 +12,77 @@ we have three data platform:
   the cloud data platform already have metadata-system integrated
 , but it didn't support oracle/mysql/postgresql or more...
 *** ad hoc thing
-  third-party data provider offer data schema in excel, world or json, we need to integrate it.
+  third-party data provider offer data schema in excel, word or json, we need to integrate it.
 *** cheap technical stack
   we already have: elastic EFK(filebeat + kafka + elasticsearch + kibana) + confluence KSQL(kafka-connector, KSQL).
   the extra thing we need is only neo4j.
 *** do search
   previously we use both excel and wiki page to link the metadata, but it's time cost to find information.
 *** lightweight
-  our company buy product from various vendor
+  the three thing we focus: searchable data dictionary >> data lineage >> workflow
 
 ** usage
 *** data dictionary
-  we already load the 7000 table to system.
-  mainly focus on oracle and mysql platform as cloud platform for hive already have function inside. 
-  we will unify finally.
+  we already load the 8000 table to system.
+  mainly focus on oracle and mysql platform as cloud platform have hive support already.
+  we will unitify it finally.
 *** data lineage:  
-  plan to support oracle,
-*** ad hoc query editor: 
+  hive, oracle
   
-* 2. setup datahub with nix
-** nix
-we setup all database using nix.
-** nix-store
-** nix-shell
-** home-manager
+
+* 2. setup datahub with nix 
+** a. nix overview [nix contains two main part: package + module]
+*** nix-env => install package
+  #+BEGIN_SRC bash
+    nix-env -f '<nixpkgs>' -iA git
+  #+END_SRC 
+
+*** nix-store => copy package
+  - copy package between machines
+  #+BEGIN_SRC bash
+    NIX_SSHOPTS="PATH=~/.nix-profile/bin" nix-copy-closure --to op@192.168.1.7 /nix/store/0ryf7j0a30sh7zs5sbi3f34mgsf7nx7z-git-2.25.0
+
+    nix-store --delete /nix/store/mwxa5sg9yjqh7c3ds8knqxldwycqypj0-systemd-243.7-dev
+    nix-collect-garbage -d
+  #+END_SRC
+
+  - export and import package
+  #+BEGIN_SRC bash
+    nix-store --export $(nix-store -qR /nix/store/0ryf7j0a30sh7zs5sbi3f34mgsf7nx7z-git-2.25.0)
+  #+END_SRC
+
+*** nix-shell => package session
+  #+BEGIN_SRC bash
+    nix-shell -p clojure  
+  #+END_SRC
+
+
+** b. nix setup
+*** home-manager => package + module
+  #+BEGIN_SRC bash
+    cat ~/.config/nixpkgs/home.nix
+    home-manager switch
+  #+END_SRC
+
+*** copy all package to target
+  #+BEGIN_SRC bash
+    $(home-manager generations) + /home-path
+    nix-store --export $(nix-store -qR /nix/store/qxjy26bgr0xy1vkhqkk3rmnrwl9wr1mh-home-manager-path) > home-manager.closure
+    nix-store --export $(nix-store -qR /nix/store/qxjy26bgr0xy1vkhqkk3rmnrwl9wr1mh-home-manager-path) | gzip > home-manager.closure.gz
+  #+END_SRC
+
+*** run it
+  - shell [production]
+  #+BEGIN_SRC bash
+    
+  #+END_SRC
+  - home-manager [dev]
+  - systemd [in future]
+
+
 
 * 3. data ingestion with nix and haskell
+
+  | a | b  |
+  |---+----|
+  | a | ab |
