@@ -11,7 +11,7 @@
 
 
 import System.Environment (lookupEnv)
-import System.IO (hPrint, stderr)
+import System.IO (hPrint, stderr, hSetEncoding, stdout, utf8)
 
 import qualified Language.Haskell.TH.Syntax as TH
 
@@ -41,7 +41,7 @@ imports "java.util.*"
 imports "java.sql.*"
 
 
-datasetOracleSql :: String
+datasetOracleSql :: T.Text
 datasetOracleSql = [q|
     select
       c.OWNER || '.' || c.TABLE_NAME as schema_name
@@ -126,6 +126,7 @@ mkMCE ts platform fields@((schemaName:schemaDescription:_):_) = [aesonQQ|
 
 main :: IO ()
 main = do
+  hSetEncoding stdout utf8
   let
     jvmArgs = case $(TH.lift =<< TH.runIO (lookupEnv "CLASSPATH")) of
       Nothing -> []
