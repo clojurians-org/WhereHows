@@ -19,15 +19,8 @@ we have three data platform:
 *** do search
   previously we use both excel and wiki page to link the metadata, but it's time cost to find information.
 *** lightweight
-  the three thing we focus: searchable data dictionary >> data lineage >> workflow
+  the thing we focus: i18n support [chinese ui] >> searchable data dictionary >> data lineage >> workflow
 
-** usage
-*** data dictionary
-  we already load the 8000 table to system.
-  mainly focus on oracle and mysql platform as cloud platform have hive support already.
-  we will unitify it finally.
-*** data lineage:  
-  hive, oracle
   
 
 * 2. setup datahub with nix 
@@ -67,22 +60,90 @@ we have three data platform:
 *** copy all package to target
   #+BEGIN_SRC bash
     $(home-manager generations) + /home-path
-    nix-store --export $(nix-store -qR /nix/store/qxjy26bgr0xy1vkhqkk3rmnrwl9wr1mh-home-manager-path) > home-manager.closure
+
+
+    ssh-cop-closure --to op@192.168.43.202 /nix/store/qxjy26bgr0xy1vkhqkk3rmnrwl9wr1mh-home-manager-path
+
     nix-store --export $(nix-store -qR /nix/store/qxjy26bgr0xy1vkhqkk3rmnrwl9wr1mh-home-manager-path) | gzip > home-manager.closure.gz
+    scp home-manager.closure.gz op@192.168.43.202:/tmp
+    ssh op@192.168.43.202 "cat /tmp/home-manager.closure.gz | gunzip | ~/.nix-profile/bin/nix-store --import"
+    ssh op@192.168.43.202 "~/.nix-profile/bin/nix-env -i /nix/store/qxjy26bgr0xy1vkhqkk3rmnrwl9wr1mh-home-manager-path"
+
+
   #+END_SRC
 
 *** run it
   - shell [production]
   #+BEGIN_SRC bash
-    
+      export ES_ALL="192.168.56.101:9200,192.168.56.102:9200,192.168.56.103:9200"
+      bash nix.sh start 192.168.56.101:9200 elasticsearch-6.2.4 --all ${ES_ALL} --cluster.id monitor
+      bash nix.sh start 192.168.56.102:9200 elasticsearch-6.2.4 --all ${ES_ALL} --cluster.id monitor
+      bash nix.sh start 192.168.56.103:9200 elasticsearch-6.2.4 --all ${ES_ALL} --cluster.id monitor
+      ...
+      ...
+
+      # | remote run
+      ssh ${ssh_opt} ${remote_info} -t "sh ${my_rhome}/nix.conf/${package_name}/run.sh $action $remote_host_port $@"
+      # | actual script [ environment replace ]
+      # https://github.com/clojurians-org/my-env/blob/master/nix.conf/elasticsearch-6.2.4/run.sh
+      cat elasticsearch.yml.template | envsubst  > ${my_data}/config/elasticsearch.yml
+      export ES_PATH_CONF=${my_data}/config
+      /nix/store/*-elasticsearch-6.8.3/bin/elasticsearch -Epath.data=${my_data} -Epath.logs=${my_log}
   #+END_SRC
-  - home-manager [dev]
-  - systemd [in future]
 
+  - home-manager [dev: sandbox]
+  #+BEGIN_SRC bash
+    systemctl --user list-units --type service
+  #+END_SRC
+  - nixops [currently nixos only]
 
+** c. datahub setup
+  - setup database [https://github.com/clojurians-org/datahub/blob/backup/contrib/nix/cheetsheet.txt]
+  mysql, es, neo4j, kafka
 
-* 3. data ingestion with nix and haskell
+* 3. data ingestion with nix and haskell [C-c C-x \]
 
-  | a | b  |
-  |---+----|
-  | a | ab |
+  |-----------+-------------------------------+-------------------+------------------------------------------|
+  | type      | path                          | desc              | comment                                  |
+  |-----------+-------------------------------+-------------------+------------------------------------------|
+  | producer  | bin/datahub-producer.hs       | load json         | load json, do exact schema check!        |
+  | generator | bin/dataset-jdbc-generator.hs | mysql, oracle ... | 7000 table, python 2 hour, now 2 minute! |
+  | generator | bin/lineage_hive_generator.hs | hive sql parser   | hive parser, can support field level     |
+
+  #+BEGIN_SRC 
+  cat sample/oracle.json.dat.gz | gunzip | bin/datahub-producer.hs config
+  #+END_SRC
+
+** how to do lineage [hive[presto,vertica] >> oracle[clickhouse] >> pg]
+*** parse method
+  a. parser generator (antlr)  => good performance, wired error information
+  b. parse combinator (parsec) => easy to extend, friendly error information.
+*** parse step
+  a. parse sql
+    token (comment, number, ...) >> ast (recursive data structure, just like json)
+  b. resolveStatement
+    pass scope information
+  c. extract information
+    lineage is very simple, only root and leaf information
+
+[https://github.com/clojurians-org/simple-datahub/blob/master/contrib/metadata-etl/library/extension/Oracle.hs]
+
+** lineage data structure
+#+BEGIN_SRC haskell
+
+-- | table level
+type TableLineage = Map FQTN (Set FQTN)
+-- each FQTN -> Set FQTN 
+
+-- | column level
+type ColumnLineagePlus = Map (Either FQTN FQCN) ColumnPlusSet
+data ColumnPlusSet = ColumnPlusSet
+    { columnPlusColumns :: Map FQCN (Map FieldChain (Set Range))
+    , columnPlusTables :: Map FQTN (Set Range)
+    } deriving (Eq, Show)
+
+-- a. each FQTN -> FQTN
+-- b. each FQCN -> FQCN + FQTN ( count(1) as a...)
+
+#+END_SRC
+
