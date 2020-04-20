@@ -1,11 +1,12 @@
 psql -h /nix/var/run -tAc "CREATE DATABASE datahub" postgres ;
 psql -h /nix/var/run -tAc "CREATE USER datahub WITH PASSWORD 'datahub'" postgres;
-psql -h 127.0.0.1 -U datahub
+psql -h 127.0.0.1 -U datahub -f schema/pg.sql
 
-echo "CREATE DATABASE datahub" | mysql -u root -S /nix/var/run/mysqld.sock
+echo "CREATE DATABASE datahub default character set utf8" | mysql -u root -S /nix/var/run/mysqld.sock
 echo "CREATE USER datahub IDENTIFIED BY 'datahub'" | mysql -u root -S /nix/var/run/mysqld.sock
 echo "GRANT ALL PRIVILEGES ON datahub.* TO datahub" | mysql -u root -S /nix/var/run/mysqld.sock
-mysql -h 127.0.0.1 -udatahub -p
+cat schema/mysql.sql | mysql -h 127.0.0.1 -udatahub -p datahub
+
 
 # curl -H "Content-Type: application/json" -XPUT http://localhost:9200/corpuserinfodocument --data @schema/es7-corpuser-index-config.json
 # curl -H "Content-Type: application/json" -XPUT http://localhost:9200/datasetdocument --data @schema/es7-dataset-index-config.json
@@ -14,15 +15,20 @@ curl -H "Content-Type: application/json" -XPUT http://localhost:9200/datasetdocu
 
 curl -H "Content-Type: application/json" -XPOST -d '{"password":"datahub"}' -u neo4j:neo4j http://localhost:7474/user/neo4j/password
 
-kafka-topics.sh --delete --bootstrap-server localhost:9092 --topic MetadataChangeEvent
-kafka-topics.sh --delete --bootstrap-server localhost:9092 --topic MetadataAuditEvent
+# kafka-topics.sh --delete --bootstrap-server localhost:9092 --topic MetadataChangeEvent
+# kafka-topics.sh --delete --bootstrap-server localhost:9092 --topic MetadataAuditEvent
 
 kafka-topics.sh --create --bootstrap-server localhost:9092 --partitions 1 --replication-factor 1 --topic MetadataChangeEvent
 kafka-topics.sh --create --bootstrap-server localhost:9092 --partitions 1 --replication-factor 1 --topic MetadataAuditEvent
 
 
+
+
+
+
+
 # export EBEAN_DATASOURCE_URL=jdbc:postgresql://localhost:5432/datahub
-export EBEAN_DATASOURCE_URL=jdbc:mysql://localhost:3306/datahub?useSSL=false
+export EBEAN_DATASOURCE_URL="jdbc:mysql://localhost:3306/datahub?useSSL=false&useUnicode=yes&characterEncoding=UTF-8
 export EBEAN_DATASOURCE_USERNAME=datahub
 export EBEAN_DATASOURCE_PASSWORD=datahub
 export KAFKA_BOOTSTRAP_SERVER=localhost:9092
@@ -52,9 +58,3 @@ export NEO4J_PASSWORD=datahub
 
 ./gradlew :metadata-jobs:mae-consumer-job:build
 ./gradlew :metadata-jobs:mae-consumer-job:run
-
-
-
-
-
-cat 
