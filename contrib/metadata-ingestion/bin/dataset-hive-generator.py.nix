@@ -51,11 +51,11 @@ in
 mkShell {
   buildInputs = (with python3Packages ;[
     python
-    confluent-kafka
     requests
-
     PyHive
 
-    avro-python3-1_8
+    simplejson
+    # avro-python3-1_8
+    # confluent-kafka
   ]) ;
 }

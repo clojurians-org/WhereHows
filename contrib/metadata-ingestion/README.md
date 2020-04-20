@@ -13,9 +13,9 @@ i split the ingestion procedure to two part: [datahub-producer] and different [m
 - [X] datahub-producer load json avro data.
 - [X] add lineage-hive generator
 - [X] add dataset-jdbc generator[include [mysql, mssql, postgresql, oracle] driver]
+- [X] add dataset-hive generator
 - [*] add lineage-oracle generator
 - [*] support haskell and python version
-- [ ] enhance dataset-jdbc generator [hive-driver]
 - [ ] enhance lineage-jdbc generator to lazy iterator mode.
 
 - [ ] enchance avro parser to show error information 
